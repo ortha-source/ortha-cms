@@ -1,15 +1,14 @@
 /**
  * Typed configuration for this app.
  *
- * **`config/` is the single place that reads the environment**, and it reads it
- * only through the readers in `@orthacms/utils-server` — never `process.env`
- * directly. `readEnv` is where "an empty value means the setting is absent" is
- * decided, and `.env` ships keys with nothing on the right-hand side; a raw
- * `process.env['X'] ?? default` skips that decision and lets a blank line win
- * over the default. Everything
- * downstream — the host, every plugin — receives typed values, so "where does
- * this setting come from" has exactly one answer. Deploy-specific values come
- * from the environment; stable product tuning lives in the builders as literals.
+ * **Which environment variables exist, and how each is read, comes from
+ * `@orthacms/config`** — the same builders the Ortha CMS repository's own
+ * server uses, so this app reads exactly the variables its documentation
+ * lists, and refuses a value it cannot honour instead of guessing. `config/`
+ * composes those builders with what is **code**: session lifetimes, the login
+ * rate limit, GraphQL cost budgets, retry counts, provider names. No module
+ * here touches `process.env` directly. Every variable, its default and what it
+ * means: `npx orthacms doctor`, or the comments in `.env`.
  *
  * **Shape:** one module per plugin under `config/`, each exporting a builder,
  * and this file assembling them. So the literal at the bottom is the table of
@@ -17,10 +16,7 @@
  * how one setting is derived opens the one module that owns it. Adding a setting
  * means editing one builder; adding a plugin means one module and one line here.
  *
- * *How* a value is parsed is decided in neither place: the readers come from
- * `@orthacms/utils-server`. Each refuses a value it cannot honour instead of
- * guessing, and the guessing is what makes a misconfigured deployment look
- * configured. Anything conditional is a *value* — a builder returns `undefined`
+ * Anything conditional is a *value* — a builder returns `undefined`
  * for a backend you did not configure, and `defined(…)` drops the keys that were
  * never set, so no config object here needs a `...(x ? { … } : {})` spread.
  *
@@ -45,12 +41,11 @@ import type { ContentGraphqlPluginConfig } from '@orthacms/content-graphql';
 import type { McpPluginConfig } from '@orthacms/mcp-server';
 // orthacms:end
 import {
-    readEnv,
-    readNonNegativeInt,
-    readPositiveInt,
-    readTrustProxy,
-    requireEnv
-} from '@orthacms/utils-server';
+    checkRetiredEnv,
+    databaseUrl,
+    port,
+    trustProxy
+} from '@orthacms/config';
 
 import { docsConfig } from './config/docs';
 import { identityConfig, type AppIdentityConfig } from './config/identity';
@@ -128,35 +123,22 @@ export interface OrthaCmsConfig {
     };
 }
 
+// A variable that used to tune something here and is no longer read refuses
+// to start when it holds anything but its old default — ignoring it would
+// change this app without a word. Before any builder runs.
+checkRetiredEnv();
+
 const config: OrthaCmsConfig = {
-    port: readPositiveInt('PORT', 3000),
+    port: port(),
     globalPrefix: 'api',
-    // A hop count is the recommended form and the only one a client cannot
-    // forge past. Unset, forwarded headers are ignored entirely — right for an
-    // app exposed directly, wrong behind any proxy.
-    trustProxy: readTrustProxy(),
-    bodyLimit: readEnv('MAX_REQUEST_BODY') ?? '1mb',
-    // The built admin bundle, served by this same process so the API and the
-    // UI share one origin — which is what identity's httpOnly, SameSite=lax
-    // session cookie needs. `orthacms dev` uses Vite's proxy for the same effect.
-    //
-    // Relative to the app root: `orthacms start` runs from there, and this path
-    // must mean the same thing whether it is read from `dist/` or from source.
+    trustProxy: trustProxy(),
+    // The largest JSON body the API parses. Media uploads are capped separately.
+    bodyLimit: '1mb',
     staticDir: join(process.cwd(), 'dist/admin'),
     database: {
-        url: requireEnv(
-            'DATABASE_URL',
-            'Set it in your .env before starting the app.'
-        ),
-        // Delivered outbox rows only. A pending or parked event is never
-        // deleted by age — a parked one is the evidence that something was
-        // never recorded.
-        //
-        // `readNonNegativeInt` because `0` is this setting's documented
-        // off-switch ("keep them forever"), and the positive reader refuses a
-        // zero — which turned the documented way to disable retention into a
-        // server that would not boot.
-        outboxRetentionDays: readNonNegativeInt('OUTBOX_RETENTION_DAYS', 30)
+        url: databaseUrl('Set it in your .env, or run `npx orthacms setup`.'),
+        // Days of delivered outbox history kept; 0 keeps everything.
+        outboxRetentionDays: 30
     },
     docs: docsConfig(),
     plugins: {

@@ -152,7 +152,6 @@ describe('the GitHub provider', () => {
     beforeEach(() => {
         delete process.env['SSO_GITHUB_CLIENT_ID'];
         delete process.env['SSO_GITHUB_CLIENT_SECRET'];
-        delete process.env['SSO_GITHUB_SCOPES'];
     });
 
     /**
@@ -187,28 +186,28 @@ describe('the GitHub provider', () => {
     });
 
     /**
-     * `readList` answers a blank line with `[]`, and `[]` is a value: passed
-     * through, the adapter's `scopes ?? DEFAULT_SCOPES` keeps it and the app
-     * requests *no* scopes — so the token comes back unable to read the
-     * profile the sign-in exists to read. The `.env` ships this key blank, so
-     * that is the default state of a fresh app rather than a mistake.
+     * This template once read `SSO_GITHUB_ENTERPRISE_BASE_URL` while the CMS's
+     * own host read `SSO_GITHUB_ENTERPRISE_URL`, so a setting copied between
+     * the two did nothing. Both read the short name now; the long one still
+     * works, with a warning.
      */
-    it('leaves the scopes at the adapter’s default rather than requesting none', () => {
+    it('reads the name the CMS host reads, and the old one with a warning', () => {
         process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
         process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
-        process.env['SSO_GITHUB_SCOPES'] = '';
-
-        expect(githubProvider()()).not.toHaveProperty('scopes');
-    });
-
-    it('passes the scopes through when the operator names some', () => {
-        process.env['SSO_GITHUB_CLIENT_ID'] = 'abc';
-        process.env['SSO_GITHUB_CLIENT_SECRET'] = 'shh';
-        process.env['SSO_GITHUB_SCOPES'] = 'read:user, user:email';
+        delete process.env['SSO_GITHUB_ENTERPRISE_URL'];
+        process.env['SSO_GITHUB_ENTERPRISE_BASE_URL'] =
+            'https://github.acme.com';
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
 
         expect(githubProvider()()).toMatchObject({
-            scopes: ['read:user', 'user:email']
+            enterpriseBaseUrl: 'https://github.acme.com'
         });
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'SSO_GITHUB_ENTERPRISE_BASE_URL has been renamed'
+            )
+        );
+        warn.mockRestore();
     });
 });
 
@@ -229,14 +228,15 @@ describe('the SAML provider', () => {
 
     beforeEach(() => {
         for (const key of Object.keys(CONFIGURED)) delete process.env[key];
+        delete process.env['PUBLIC_URL'];
     });
 
     /**
-     * All three are required and none has a fallback: SAML has no discovery
-     * document and no key endpoint, so the certificate is the whole of the
-     * trust relationship.
+     * The entry point and the certificate have no fallback: SAML has no
+     * discovery document and no key endpoint, so the certificate is the whole
+     * of the trust relationship.
      */
-    it.each(Object.keys(CONFIGURED))(
+    it.each(['SSO_SAML_ENTRY_POINT', 'SSO_SAML_IDP_CERT'])(
         'is absent from the config without %s [create-orthacms-app:I-16]',
         (missing) => {
             Object.assign(process.env, CONFIGURED);
@@ -245,6 +245,17 @@ describe('the SAML provider', () => {
             expect(samlProvider()()).toBeUndefined();
         }
     );
+
+    it('defaults the entity id to PUBLIC_URL', () => {
+        Object.assign(process.env, CONFIGURED, {
+            PUBLIC_URL: 'https://cms.example.test'
+        });
+        delete process.env['SSO_SAML_ISSUER'];
+
+        expect(samlProvider()()).toMatchObject({
+            issuer: 'https://cms.example.test'
+        });
+    });
 
     it('is present once all three are set [create-orthacms-app:I-16]', () => {
         Object.assign(process.env, CONFIGURED);
@@ -319,76 +330,78 @@ describe('mail', () => {
     }
 
     const CONFIGURED = {
-        MAIL_PROVIDER: 'smtp',
-        APP_URL: 'https://cms.example.test',
-        MAIL_FROM: 'My CMS <no-reply@example.test>',
-        SMTP_HOST: 'smtp.example.test'
+        MAIL_URL: 'smtp://smtp.example.test:587',
+        PUBLIC_URL: 'https://cms.example.test',
+        MAIL_FROM: 'My CMS <no-reply@example.test>'
     };
 
     beforeEach(() => {
-        for (const key of Object.keys(CONFIGURED)) delete process.env[key];
+        for (const key of [...Object.keys(CONFIGURED), 'MAIL_PROVIDER']) {
+            delete process.env[key];
+        }
     });
 
     it.each([
         ['unset', undefined],
         ['blank', '']
     ])(
-        'sends nothing when MAIL_PROVIDER is %s [create-orthacms-app:I-35]',
+        'sends nothing when MAIL_URL is %s [create-orthacms-app:I-35]',
         (_label, value) => {
-            if (value !== undefined) process.env['MAIL_PROVIDER'] = value;
+            if (value !== undefined) process.env['MAIL_URL'] = value;
 
             expect(mailConfig()()).toBeUndefined();
         }
     );
 
     /**
-     * A misspelling must not read as "send nothing". Silently sending nothing
-     * is the failure the whole arrangement is built to avoid, and it would show
-     * up as invitations nobody receives rather than as a boot error.
+     * A backend the app does not have must not read as "send nothing".
+     * Silently sending nothing is the failure the whole arrangement is built
+     * to avoid, and it would show up as invitations nobody receives rather
+     * than as a boot error.
      */
     it('refuses a backend it was not scaffolded with', () => {
-        process.env['MAIL_PROVIDER'] = 'console';
+        process.env['MAIL_URL'] = 'console://';
 
-        expect(() => mailConfig()()).toThrow(/MAIL_PROVIDER/);
+        expect(() => mailConfig()()).toThrow(/does not have installed/);
     });
 
     /**
-     * Both are required the moment a backend is named, and `requireEnv` is what
-     * says so at boot rather than on somebody's first invitation: a message
-     * with no sender is refused by every relay, and every link in it is built
-     * from `APP_URL`.
+     * A sender is required the moment a relay is named, and in production so
+     * is `PUBLIC_URL`, which every link is built from — said at boot rather
+     * than on somebody's first invitation.
      */
-    it.each(['APP_URL', 'MAIL_FROM', 'SMTP_HOST'])(
-        'refuses to boot with a backend named and no %s',
-        (missing) => {
-            Object.assign(process.env, CONFIGURED);
-            delete process.env[missing];
+    it('refuses to boot with a relay named and no MAIL_FROM', () => {
+        Object.assign(process.env, CONFIGURED);
+        delete process.env['MAIL_FROM'];
 
-            expect(() => mailConfig()()).toThrow(new RegExp(missing));
-        }
-    );
+        expect(() => mailConfig()()).toThrow(/MAIL_FROM/);
+    });
 
-    it('builds the relay settings once a backend is named [create-orthacms-app:I-35]', () => {
+    it('refuses to boot in production with a relay named and no PUBLIC_URL', () => {
+        Object.assign(process.env, CONFIGURED, { NODE_ENV: 'production' });
+        delete process.env['PUBLIC_URL'];
+
+        expect(() => mailConfig()()).toThrow(/PUBLIC_URL/);
+    });
+
+    it('builds the relay settings once a relay is named [create-orthacms-app:I-35]', () => {
         Object.assign(process.env, CONFIGURED);
 
         expect(mailConfig()()).toMatchObject({
             backend: 'smtp',
             appUrl: 'https://cms.example.test',
             from: 'My CMS <no-reply@example.test>',
-            smtp: { host: 'smtp.example.test' }
+            smtp: { host: 'smtp.example.test', port: 587 }
         });
     });
 
     /**
-     * `.env` ships `SMTP_SECURE=` blank, and blank is not `false` here: passing
-     * `false` turns implicit TLS off explicitly, where leaving the key out lets
-     * the adapter upgrade the connection with STARTTLS — which is what port 587
-     * wants. The two look identical in the file and behave differently on the
-     * wire.
+     * Passing `secure: false` turns implicit TLS off explicitly, where leaving
+     * the key out lets the adapter upgrade with STARTTLS — which is what port
+     * 587 wants. `smtp://` must therefore leave it out.
      */
-    it('leaves implicit TLS unset rather than switching it off', () => {
+    it('leaves implicit TLS unset for smtp:// rather than switching it off', () => {
         Object.assign(process.env, CONFIGURED);
-        process.env['SMTP_SECURE'] = '';
 
         expect(mailConfig()()).toMatchObject({
             smtp: expect.not.objectContaining({ secure: expect.anything() })
@@ -408,21 +421,6 @@ describe('mail', () => {
  * pass the blank in.
  */
 describe('a setting written into .env with no value', () => {
-    it('leaves the OIDC provider name at its default rather than naming it ""', () => {
-        // Registered under `''`, the provider's callback is
-        // `/api/auth/sso//callback`, and nothing reports it at boot.
-        process.env['SSO_OIDC_ISSUER'] = 'https://issuer.test';
-        process.env['SSO_OIDC_CLIENT_ID'] = 'client';
-        process.env['SSO_OIDC_NAME'] = '';
-
-        expect(
-            load<{ oidcProvider: () => { name: string } | undefined }>(
-                ['media-local', 'rest', 'sso-oidc'],
-                'apps/server/config/sso-oidc'
-            ).oidcProvider()
-        ).toMatchObject({ name: 'oidc' });
-    });
-
     it('keeps the default upload root rather than writing blobs to ""', () => {
         process.env['MEDIA_LOCAL_ROOT'] = '';
 
@@ -482,15 +480,11 @@ describe('a setting written into .env with no value', () => {
  * correct proves nothing here — the broken version had correct defaults too.
  */
 /**
- * The generated app's outbox retention window.
- *
- * `env.tmpl` ships `OUTBOX_RETENTION_DAYS=30` and tells the reader that `0`
- * keeps delivered events forever. Read through `readPositiveInt` that sentence
- * was a trap: `0` threw at import, so the documented off-switch stopped a
- * freshly scaffolded app from booting (ORT-211). The test has to execute the
- * root config rather than read it, because the throw is in the reader.
+ * Settings that are code in a generated app, not environment: a retired
+ * variable set to anything but its old default refuses to start, because
+ * ignoring it would change the app without a word.
  */
-describe('the outbox retention window', () => {
+describe('a variable that is no longer read', () => {
     /** Renders a default app and reads its root config back. */
     function rootConfig(): { database: { outboxRetentionDays: number } } {
         return load<{
@@ -501,30 +495,23 @@ describe('the outbox retention window', () => {
     beforeEach(() => {
         process.env['DATABASE_URL'] =
             'postgresql://orthacms:orthacms@localhost:5432/my_cms';
+        delete process.env['OUTBOX_RETENTION_DAYS'];
     });
 
-    it('defaults to 30 days when the variable is unset', () => {
-        delete process.env['OUTBOX_RETENTION_DAYS'];
-
+    it('leaves the value in the config', () => {
         expect(rootConfig().database.outboxRetentionDays).toBe(30);
     });
 
-    it('takes 0 as "never prune" instead of refusing to load', () => {
-        process.env['OUTBOX_RETENTION_DAYS'] = '0';
+    it('is a warning at its old default and a refusal otherwise', () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation();
+        process.env['OUTBOX_RETENTION_DAYS'] = '30';
+        expect(rootConfig().database.outboxRetentionDays).toBe(30);
+        expect(warn).toHaveBeenCalled();
+        warn.mockRestore();
 
-        expect(rootConfig().database.outboxRetentionDays).toBe(0);
-    });
-
-    it('carries a configured window through', () => {
+        jest.resetModules();
         process.env['OUTBOX_RETENTION_DAYS'] = '7';
-
-        expect(rootConfig().database.outboxRetentionDays).toBe(7);
-    });
-
-    it('still refuses a negative, which is a typo rather than an off-switch', () => {
-        process.env['OUTBOX_RETENTION_DAYS'] = '-1';
-
-        expect(() => rootConfig()).toThrow(/OUTBOX_RETENTION_DAYS/);
+        expect(() => rootConfig()).toThrow(/OUTBOX_RETENTION_DAYS=7/);
     });
 });
 
@@ -534,6 +521,7 @@ describe('the webhook URL policy', () => {
         allowInsecureUrls?: boolean;
         allowPrivateNetworks?: boolean;
         retentionDays?: number;
+        deliveryIntervalMs?: number;
     } {
         return load<{ webhooksConfig: () => never }>(
             ['media-local', 'rest'],
@@ -554,13 +542,18 @@ describe('the webhook URL policy', () => {
     it('lets the environment widen it, which is the whole point [create-orthacms-app:I-34]', () => {
         process.env['WEBHOOKS_ALLOW_INSECURE_URLS'] = 'true';
         process.env['WEBHOOKS_ALLOW_PRIVATE_NETWORKS'] = 'true';
-        process.env['WEBHOOKS_RETENTION_DAYS'] = '7';
 
         expect(webhooksConfig()()).toMatchObject({
             allowInsecureUrls: true,
-            allowPrivateNetworks: true,
-            retentionDays: 7
+            allowPrivateNetworks: true
         });
+    });
+
+    it('queues without sending when ORTHACMS_WORKERS=false', () => {
+        process.env['ORTHACMS_WORKERS'] = 'false';
+
+        expect(webhooksConfig()()).toMatchObject({ deliveryIntervalMs: 0 });
+        delete process.env['ORTHACMS_WORKERS'];
     });
 });
 
@@ -646,5 +639,62 @@ describe('the schema builder', () => {
             projectRoot: resolve(process.cwd(), 'server'),
             restart: 'manual'
         });
+    });
+
+    it('refuses a restart mode it does not know instead of reading it as watch', () => {
+        process.env['SCHEMA_BUILDER_RESTART'] = 'manaul';
+
+        expect(() => schemaBuilderConfig()()).toThrow(
+            'SCHEMA_BUILDER_RESTART must be one of watch, manual'
+        );
+    });
+});
+
+/**
+ * The origin guard on sign-in. A browser sends `Origin` on every POST,
+ * same-origin included, so the origin `npm start` serves the admin from must be
+ * allowed by default — it was not, and a freshly generated app answered every
+ * browser sign-in with a 403 while the smoke test, which sent no `Origin`,
+ * passed.
+ */
+describe('the allowed origins', () => {
+    /** Renders a default app and reads the identity builder back. */
+    function allowedOrigins(): string[] {
+        return load<{ identityConfig: () => { allowedOrigins: string[] } }>(
+            ['media-local', 'rest'],
+            'apps/server/config/identity'
+        ).identityConfig().allowedOrigins;
+    }
+
+    beforeEach(() => {
+        for (const key of [
+            'ALLOWED_ORIGINS',
+            'PUBLIC_URL',
+            'ADMIN_PORT',
+            'PORT'
+        ]) {
+            delete process.env[key];
+        }
+    });
+
+    it('allows the dev server and the origin `npm start` serves', () => {
+        expect(allowedOrigins()).toEqual([
+            'http://localhost:4200',
+            'http://localhost:3000'
+        ]);
+    });
+
+    it('follows PORT, which is what `npm start` listens on', () => {
+        process.env['PORT'] = '8080';
+
+        expect(allowedOrigins()).toContain('http://localhost:8080');
+    });
+
+    it('takes the deployment origin from PUBLIC_URL, and only that in production', () => {
+        process.env['PUBLIC_URL'] = 'https://cms.example.com/';
+        process.env['NODE_ENV'] = 'production';
+
+        expect(allowedOrigins()).toEqual(['https://cms.example.com']);
+        process.env['NODE_ENV'] = 'test';
     });
 });

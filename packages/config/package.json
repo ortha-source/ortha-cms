@@ -1,0 +1,18 @@
+{
+    "name": "@orthacms/config",
+    "version": "0.13.1",
+    "license": "MIT",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./package.json": "./package.json"
+    },
+    "dependencies": {
+        "@orthacms/utils-server": "*"
+    }
+}

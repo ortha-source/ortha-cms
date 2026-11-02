@@ -133,7 +133,7 @@ export function ssoProviders(config: OrthaCmsConfig): SsoRegistration[] {
  * nothing.
  *
  * **Only what is configured is constructed.** `orthacms.config.ts` returns no
- * mail config at all unless `MAIL_PROVIDER` names a backend, and this returns
+ * mail config at all unless `MAIL_URL` names a backend, and this returns
  * `null` in that case — so a fresh clone registers no mail plugin, keeps the
  * invite and reset routes returning the raw token, and behaves exactly as the
  * product did before ADR-0018. There is no "default" adapter here for the same
@@ -158,7 +158,7 @@ export function mailProvider(config: OrthaCmsConfig): MailProvider | null {
         // failure this file refuses elsewhere: mail that looks sent and reaches
         // nobody.
         throw new Error(
-            'MAIL_PROVIDER=smtp but no SMTP connection settings were built — set SMTP_HOST.'
+            'Mail is configured for SMTP but no relay settings were built — set MAIL_URL=smtp://host:587.'
         );
     }
     return createSmtpMailProvider(mail.smtp);

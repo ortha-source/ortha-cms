@@ -261,11 +261,11 @@ There is no “session” lifecycle here — there is the lifecycle of **one exc
 
 None of them can be supplied by the tool registry: it is transport-neutral, and a request-response exchange has obligations the copilot's in-process loop does not.
 
-| Limit                | Value                          | Where it lives                                             | What happens above it                                                                                             |
-| -------------------- | ------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **The request body** | 1 MB (`MAX_REQUEST_BODY`)      | the host's `bodyLimit` in `createServer`                   | A `413` with an ordinary Nest body. This is **above** the JSON-RPC layer, which is why it is not a JSON-RPC frame |
-| **One `tools/call`** | 30 s (`MCP_CALL_TIMEOUT_MS`)   | `build-mcp-server.ts`, `callWithinDeadline`                | a result with `isError: true`, `status: 504`, `code: timeout`                                                     |
-| **One tool result**  | 4 MiB (`MCP_MAX_RESULT_BYTES`) | `build-mcp-server.ts`, before handing off to the transport | a result with `isError: true`, `status: 413`, `code: result_too_large`, **with both sizes in the text**           |
+| Limit                | Value                    | Where it lives                                             | What happens above it                                                                                             |
+| -------------------- | ------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **The request body** | 1 MB (`bodyLimit`)       | the host's `bodyLimit` in `createServer`                   | A `413` with an ordinary Nest body. This is **above** the JSON-RPC layer, which is why it is not a JSON-RPC frame |
+| **One `tools/call`** | 30 s (`callTimeoutMs`)   | `build-mcp-server.ts`, `callWithinDeadline`                | a result with `isError: true`, `status: 504`, `code: timeout`                                                     |
+| **One tool result**  | 4 MiB (`maxResultBytes`) | `build-mcp-server.ts`, before handing off to the transport | a result with `isError: true`, `status: 413`, `code: result_too_large`, **with both sizes in the text**           |
 
 > **The deadline abandons the work, it does not cancel it**
 >
@@ -557,9 +557,9 @@ McpPlugin({
 | enabled        | MCP_ENABLED          | `false`             | Whether the door is mounted. Read strictly as `=== 'true'`, so any other value means “off”. The only thing it governs is the controller. Tokens, scopes and workspace baskets do not change                                                                                                                      |
 | name           | —                    | `'orthacms'`        | The server's identity in `initialize` — what the client shows in its connector list. A literal rather than a variable: this is stable product configuration. An empty value is an exception at plugin construction                                                                                               |
 | version        | —                    | `'1.0.0'`           | The same. An empty value is an exception at construction                                                                                                                                                                                                                                                         |
-| callTimeoutMs  | MCP_CALL_TIMEOUT_MS  | `30_000`            | The ceiling on a single `tools/call`. 30 s is generous for every shipped tool and noticeably below the idle timeouts of the load balancers such deployments sit behind. A **positive integer** is required: a zero would fail every call, and `Number(env) \|\| default` would turn a typo into a silent default |
-| maxResultBytes | MCP_MAX_RESULT_BYTES | `4_194_304` (4 MiB) | The ceiling on one tool's serialized result. Deliberately generous: nothing in the catalogue returns that much today, and the ceiling exists so that a pathological result is not serialized three times, not to shape ordinary use. A positive integer is required                                              |
-| —              | MAX_REQUEST_BODY     | `'1mb'`             | **Not an MCP field**: the host's `bodyLimit`, applied to the whole application. Uploads are unaffected — they are multipart and are bounded separately by the media plugin's `maxUploadBytes`                                                                                                                    |
+| callTimeoutMs  | in code              | `30_000`            | The ceiling on a single `tools/call`. 30 s is generous for every shipped tool and noticeably below the idle timeouts of the load balancers such deployments sit behind. A **positive integer** is required: a zero would fail every call, and `Number(env) \|\| default` would turn a typo into a silent default |
+| maxResultBytes | in code              | `4_194_304` (4 MiB) | The ceiling on one tool's serialized result. Deliberately generous: nothing in the catalogue returns that much today, and the ceiling exists so that a pathological result is not serialized three times, not to shape ordinary use. A positive integer is required                                              |
+| —              | bodyLimit, in code   | `'1mb'`             | **Not an MCP field**: the host's `bodyLimit`, applied to the whole application. Uploads are unaffected — they are multipart and are bounded separately by the media plugin's `maxUploadBytes`                                                                                                                    |
 
 ### What is validated at plugin construction
 
@@ -732,10 +732,10 @@ In the “action → what to expect” format. Most of it is already covered by 
 - **A non-uuid in `folderId` / `assetId`** → `400`/`bad_request`, not an opaque `500`.
 - **A tool threw an `HttpException`** → `isError` with the status, a short code and the message as is; `issues` carried over verbatim.
 - **A tool threw a non-`HttpException`** → a bare `500`/`internal_error` and the text “see the server logs”. The response contains **no** table name, column or connection string. The log has the stack.
-- **`MCP_CALL_TIMEOUT_MS=1`, any call** → `isError`, `504`/`timeout`, with the tool's name and the deadline value in the message. The caller **always** gets an answer.
+- **`callTimeoutMs: 1`, any call** → `isError`, `504`/`timeout`, with the tool's name and the deadline value in the message. The caller **always** gets an answer.
 - **A handler that fails after the deadline** → the process survives. A regression here is an unhandled rejection crashing the server, i.e. exactly the failure the timeout was introduced for.
 - **The client broke the connection mid-call** → no “unhandled error in a tool handler” entry with a stack in the logs: a client going away is routine, not a bug in a tool.
-- **`MCP_MAX_RESULT_BYTES=200`, `content_types_list`** → `isError`, `413`/`result_too_large`, **both sizes named**, and `structuredContent` **absent** from the response.
+- **`maxResultBytes: 200`, `content_types_list`** → `isError`, `413`/`result_too_large`, **both sizes named**, and `structuredContent` **absent** from the response.
 - **A result just under the ceiling** → passes unchanged; the cutoff is not “approximately”.
 - **A non-object value from a tool** → reaches `structuredContent` as `{ value: … }` rather than being lost.
 
@@ -793,7 +793,7 @@ In the “action → what to expect” format. Most of it is already covered by 
 | The workspace's content grants                                                  | `workspaces-server` + `content-server`                                              | Nothing; the grant gate is applied inside the handlers and when reading resources                             |
 | Restricting the readers of a published entry                                    | `segments-server`                                                                   | Serves three of that plugin's tools; does not expose the audience directory at all                            |
 | Proposals, the run engine, attribution to a human                               | `copilot-server`                                                                    | Nothing — and that is exactly why `propose` tools are not admitted here                                       |
-| The request body limit                                                          | `bootstrap-server` (`bodyLimit`, `MAX_REQUEST_BODY`)                                | Does not configure it; the limit is application-wide and fires above JSON-RPC                                 |
+| The request body limit                                                          | `bootstrap-server` (`bodyLimit`)                                                    | Does not configure it; the limit is application-wide and fires above JSON-RPC                                 |
 | The global `/api` prefix, the `ValidationPipe`, the body parser                 | `bootstrap-server`                                                                  | Uses them: the controller is declared as `v1/mcp`, and the body arrives already parsed                        |
 | The database connection and migrations                                          | `@orthacms/database` + `@orthacms/nx`                                               | Nothing. No tables, no migrations, no schema                                                                  |
 | The activity journal                                                            | `activity`                                                                          | Nothing directly; the events are produced by the plugins whose services ran                                   |

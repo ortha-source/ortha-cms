@@ -60,7 +60,7 @@ type PasswordResetLinkPanelProps = {
  * than claiming something unclaimed.
  *
  * It exists for deployments with no mail provider configured — the default —
- * where the admin is the delivery channel. With one (`MAIL_PROVIDER`), the
+ * where the admin is the delivery channel. With one (`MAIL_URL`), the
  * server emails the link, returns no token, and this is never shown.
  */
 export function PasswordResetLinkPanel({

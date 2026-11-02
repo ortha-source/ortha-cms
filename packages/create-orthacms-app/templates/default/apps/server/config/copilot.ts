@@ -6,7 +6,8 @@ import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthrop
 // orthacms:if copilot-openai
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 // orthacms:end
-import { defined, readFlag, readPositiveInt } from '@orthacms/utils-server';
+import { copilotEnabled, copilotQuotasFromEnv } from '@orthacms/config';
+import { defined } from '@orthacms/utils-server';
 
 // orthacms:if copilot-anthropic
 import { anthropicProvider } from './copilot-anthropic';
@@ -44,11 +45,17 @@ export interface AppCopilotConfig extends CopilotPluginConfig {
 
 /** The copilot kill switch and the model backends it can reach. */
 export function copilotConfig(): AppCopilotConfig {
-    return {
+    return defined({
         // Off by default: enabling a hosted provider sends workspace content to
         // a third party, which is an operator's decision to make explicitly.
-        enabled: readFlag('COPILOT_ENABLED', false),
-        maxOutputTokens: readPositiveInt('COPILOT_MAX_OUTPUT_TOKENS', 8192),
+        enabled: copilotEnabled(),
+        // Ceiling on a single model response, in tokens. The run ceilings
+        // (steps, wall clock, total tokens) are the plugin's defaults; raise
+        // them together here with `limits: { … }` if answers come back
+        // incomplete.
+        maxOutputTokens: 8192,
+        // Daily token and rate limits, each off unless its variable is set.
+        quotas: copilotQuotasFromEnv(),
         providers: defined({
             // orthacms:if copilot-anthropic
             claude: anthropicProvider(),
@@ -57,5 +64,5 @@ export function copilotConfig(): AppCopilotConfig {
             openai: openAiProvider()
             // orthacms:end
         })
-    };
+    });
 }

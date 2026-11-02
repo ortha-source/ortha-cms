@@ -156,7 +156,7 @@ export function copilotProviders(config: OrthaCmsConfig): ProviderRegistration[]
  * meant to read as "what this app runs".
  *
  * **Only a configured backend is registered.** `orthacms.config.ts` returns no
- * mail config at all unless `MAIL_PROVIDER` names one, and this returns nothing
+ * mail config at all unless `MAIL_URL` names one, and this returns nothing
  * in that case — so the app boots with no queue and no worker, and the invite
  * and reset routes keep handing the link back for you to pass on. There is no
  * fallback adapter here on purpose: one that wrote messages to the log would
@@ -250,7 +250,7 @@ export function buildPlugins(config: OrthaCmsConfig): ServerPlugin[] {
         // Mail, before users: the dispatcher it binds is what the invite,
         // resend and reset use cases queue their messages through, and what
         // makes those routes stop returning a raw token. Registered only when
-        // `MAIL_PROVIDER` names a backend — with none, users injects nothing,
+        // `MAIL_URL` names a backend — with none, users injects nothing,
         // sends nothing, and returns the link exactly as it always has.
         //
         // Module order is not what binds it (every plugin module is global),

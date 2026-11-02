@@ -1,34 +1,17 @@
 // orthacms:if sso-oidc
 import type { OidcProviderConfig } from '@orthacms/identity-provider-oidc';
-import { defined, readEnv, readFlag } from '@orthacms/utils-server';
+import { oidcFromEnv } from '@orthacms/config';
 
 /**
- * The OIDC provider, or nothing.
+ * The OpenID Connect provider, or nothing until both `SSO_OIDC_ISSUER` and
+ * `SSO_OIDC_CLIENT_ID` are set.
  *
- * Present only when both values are set: an issuer with no client id becomes a
- * sign-in button that can only fail, and every SSO failure looks the same, so
- * whoever clicks it learns nothing.
+ * The name is what `/api/auth/sso/<name>/start` and every `sso_identities`
+ * row refer to, so it is code here: renaming it orphans the links. A button
+ * label or extra scopes go beside it (`label: 'Acme staff'`).
  */
 export function oidcProvider(): (OidcProviderConfig & { name: string }) | undefined {
-    const issuer = readEnv('SSO_OIDC_ISSUER');
-    const clientId = readEnv('SSO_OIDC_CLIENT_ID');
-    if (!issuer || !clientId) {
-        return undefined;
-    }
-    return defined({
-        name: readEnv('SSO_OIDC_NAME') ?? 'oidc',
-        issuer,
-        clientId,
-        clientSecret: readEnv('SSO_OIDC_CLIENT_SECRET'),
-        label: readEnv('SSO_OIDC_LABEL'),
-        // The only gate on a first sign-in claiming an existing account. A
-        // provider that omits the claim — Entra ID, notably — links nobody
-        // until an operator asserts that this directory owns the addresses it
-        // reports.
-        emailVerifiedWhenAbsent: readFlag(
-            'SSO_OIDC_EMAIL_VERIFIED_WHEN_ABSENT',
-            false
-        )
-    });
+    const settings = oidcFromEnv();
+    return settings && { name: 'oidc', ...settings };
 }
 // orthacms:end

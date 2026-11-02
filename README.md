@@ -35,8 +35,8 @@ Prerequisites: Node 22 or newer (CI runs 22 and 24), npm, Docker.
 # 1. Install
 npm install
 
-# 2. Configure — copy the example env; set DATABASE_URL, and
-#    ORTHACMS_ROOT_ADMIN_EMAIL / _PASSWORD for a first administrator to sign in as
+# 2. Configure — copy the example env. It boots as it is; every variable is
+#    listed in docs/configuration.md
 cp .env.example .env
 
 # 3. Start Postgres

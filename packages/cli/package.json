@@ -18,7 +18,9 @@
     },
     "dependencies": {
         "@orthacms/bootstrap-server": "*",
+        "@orthacms/config": "*",
         "@orthacms/schema-builder-domain": "*",
+        "@orthacms/utils-server": "*",
         "drizzle-kit": "^0.31.0",
         "drizzle-orm": "^0.45.0",
         "jiti": "^2.4.0",

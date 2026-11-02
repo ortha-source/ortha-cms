@@ -1,15 +1,19 @@
 #!/usr/bin/env node
 import {
     USAGE,
+    flag,
     halves,
     numberOption,
     option,
+    options,
     wantsHelp,
     wantsVersion
 } from './lib/args';
 import { buildCommand } from './lib/commands/build';
 import { contentCommand } from './lib/commands/content';
 import { devCommand } from './lib/commands/dev';
+import { doctorCommand } from './lib/commands/doctor';
+import { setupCommand } from './lib/commands/setup';
 import { generateCommand } from './lib/commands/generate';
 import { migrateCommand } from './lib/commands/migrate';
 import { startCommand } from './lib/commands/start';
@@ -55,6 +59,35 @@ async function main(): Promise<void> {
             return generateCommand(root, option(argv, 'name'));
         case 'content':
             return contentCommand(root, argv);
+        case 'setup': {
+            const output = option(argv, 'output');
+            if (
+                output &&
+                !['env', 'compose', 'kubernetes', 'file'].includes(output)
+            ) {
+                throw new Error(
+                    `--output must be env, compose, kubernetes or file (got "${output}").`
+                );
+            }
+            return setupCommand(root, {
+                production: flag(argv, 'production') ? true : undefined,
+                yes: flag(argv, 'yes'),
+                set: options(argv, 'set'),
+                output: output as
+                    | 'env'
+                    | 'compose'
+                    | 'kubernetes'
+                    | 'file'
+                    | undefined,
+                skipChecks: flag(argv, 'skip-checks')
+            });
+        }
+        case 'doctor':
+            return doctorCommand(root, {
+                json: flag(argv, 'json'),
+                offline: flag(argv, 'offline'),
+                all: flag(argv, 'all')
+            });
         case 'studio':
             return studioCommand(root, {
                 host: option(argv, 'host'),

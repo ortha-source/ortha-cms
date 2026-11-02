@@ -23,6 +23,8 @@
  * exists to end.
  */
 
+import { readFileSync } from 'node:fs';
+
 /**
  * A trimmed environment value, `undefined` when unset **or empty**.
  *
@@ -33,7 +35,84 @@
  * that is in the picker and fails on the first message.
  */
 export function readEnv(name: string): string | undefined {
-    return process.env[name]?.trim() || undefined;
+    const value = readOne(name);
+    if (value) {
+        return value;
+    }
+    for (const previous of RENAMED[name] ?? []) {
+        const legacy = readOne(previous);
+        if (legacy) {
+            warnRenamed(previous, name);
+            return legacy;
+        }
+    }
+    return undefined;
+}
+
+/**
+ * One variable, or the file its `_FILE` twin names.
+ *
+ * `DATABASE_URL_FILE=/run/secrets/db` is how Docker and Kubernetes hand a
+ * secret to a process without putting it in the environment, where `ps e` and
+ * every crash reporter can read it. The variable itself wins when both are
+ * set. A `_FILE` that names a missing file throws: the operator pointed at a
+ * secret, and booting without it would be a guess.
+ */
+function readOne(name: string): string | undefined {
+    const direct = process.env[name]?.trim();
+    if (direct) {
+        return direct;
+    }
+    const file = process.env[`${name}_FILE`]?.trim();
+    if (!file) {
+        return undefined;
+    }
+    try {
+        return readFileSync(file, 'utf8').trim() || undefined;
+    } catch (error) {
+        throw new Error(
+            `${name}_FILE points at ${file}, which could not be read ` +
+                `(${error instanceof Error ? error.message : String(error)}).`
+        );
+    }
+}
+
+/**
+ * Variables that were renamed, keyed by their current name, each listing the
+ * names a deployment may still be using for it.
+ *
+ * A rename must not break a running deployment on upgrade: the old spelling
+ * keeps working for the release it was renamed in, and says so once at boot
+ * with the name to move to. Read through {@link readEnv}, so every reader
+ * honours it — and the current name always wins when both are set.
+ *
+ * Here rather than in each host because the readers are shared with the
+ * scaffolder's template, and a generated app has to accept exactly the names
+ * this repo's host does.
+ */
+export const RENAMED: Readonly<Record<string, readonly string[]>> = {
+    // One URL now says where the admin is; mail's link base was a second name
+    // for the same address.
+    PUBLIC_URL: ['APP_URL'],
+    // Only an API on its own origin needs it, and SSO is not the only reader.
+    API_PUBLIC_URL: ['SSO_PUBLIC_BASE_URL'],
+    // The scaffolder's template spelled it differently from this repo's host,
+    // so a setting copied from one to the other was silently ignored.
+    SSO_GITHUB_ENTERPRISE_URL: ['SSO_GITHUB_ENTERPRISE_BASE_URL']
+};
+
+const warned = new Set<string>();
+
+/** Says once per process that `previous` is an old name for `current`. */
+function warnRenamed(previous: string, current: string): void {
+    if (warned.has(previous)) {
+        return;
+    }
+    warned.add(previous);
+    console.warn(
+        `Environment variable ${previous} has been renamed to ${current}. ` +
+            `It is still read for now; rename it before the next release.`
+    );
 }
 
 /**
@@ -151,7 +230,9 @@ export function readNonNegativeInt(name: string, fallback: number): number {
  * because "allow no origins" is a setting somebody means.
  */
 export function readList(name: string, fallback: string): string[] {
-    return (process.env[name] ?? fallback)
+    // Present-but-empty stays an empty list; absent may still come from a
+    // `_FILE` twin or an old name, through `readEnv`.
+    return (process.env[name] ?? readEnv(name) ?? fallback)
         .split(',')
         .map((item) => item.trim())
         .filter(Boolean);
@@ -252,14 +333,53 @@ export function readOptionalList(name: string): string[] | undefined {
  * A boolean setting: what the deployment said, or `fallback` when it said
  * nothing.
  *
- * Anything other than `true` reads as false, so a typo turns a switch **off**
- * rather than on. That direction is deliberate: the switches this reads are
- * kill switches for surfaces that send content to a third party or open a door
- * for an external agent, and a misspelling should not open one.
+ * `true` and `1` are on, `false` and `0` are off, in any case. Anything else
+ * **throws**, naming the variable. It used to read as off, on the reasoning
+ * that a misspelt kill switch should stay shut — but the same rule turned
+ * `COPILOT_ENABLED=1` off without a word, and `SSO_EMAIL_VERIFIED=yes` into a
+ * setting the operator believed they had made. Refusing to boot keeps the
+ * door shut *and* says why.
  */
 export function readFlag(name: string, fallback: boolean): boolean {
     const raw = readEnv(name);
-    return raw === undefined ? fallback : raw === 'true';
+    if (raw === undefined) {
+        return fallback;
+    }
+    const value = raw.toLowerCase();
+    if (value === 'true' || value === '1') {
+        return true;
+    }
+    if (value === 'false' || value === '0') {
+        return false;
+    }
+    throw new Error(
+        `Environment variable ${name} must be true or false (got "${raw}").`
+    );
+}
+
+/**
+ * One of a fixed set of values, or `fallback` when unset.
+ *
+ * Replaces `readEnv(x) === 'signed-url' ? 'signed-url' : 'off'`, which read
+ * `signed_url` as `off` and `manaul` as the default, with nothing in the log.
+ * Anything outside `allowed` throws and lists what would have been accepted.
+ */
+export function readEnum<const T extends string>(
+    name: string,
+    allowed: readonly T[],
+    fallback: T
+): T {
+    const raw = readEnv(name);
+    if (raw === undefined) {
+        return fallback;
+    }
+    if (!(allowed as readonly string[]).includes(raw)) {
+        throw new Error(
+            `Environment variable ${name} must be one of ` +
+                `${allowed.join(', ')} (got "${raw}").`
+        );
+    }
+    return raw as T;
 }
 
 /**

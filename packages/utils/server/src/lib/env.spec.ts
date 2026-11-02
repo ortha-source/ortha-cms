@@ -1,8 +1,12 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
     defined,
     isProduction,
     NODE_ENVS,
     readEnv,
+    readEnum,
     readFlag,
     readList,
     readNodeEnv,
@@ -296,18 +300,117 @@ describe('environment readers', () => {
             expect(readFlag('ORTHACMS_TEST_FLAG', true)).toBe(true);
         });
 
-        it('is true only for exactly "true"', () => {
-            set('ORTHACMS_TEST_FLAG', 'true');
-            expect(readFlag('ORTHACMS_TEST_FLAG', false)).toBe(true);
-        });
-
-        it('turns the switch off for anything else, including a typo', () => {
-            // These gate surfaces that send content to a third party or open a
-            // door for an external agent. A misspelling must not open one.
-            for (const raw of ['TRUE', 'yes', '1', 'ture']) {
+        it('reads true and 1 as on, false and 0 as off, in any case', () => {
+            for (const raw of ['true', 'TRUE', 'True', '1']) {
+                set('ORTHACMS_TEST_FLAG', raw);
+                expect(readFlag('ORTHACMS_TEST_FLAG', false)).toBe(true);
+            }
+            for (const raw of ['false', 'FALSE', '0']) {
                 set('ORTHACMS_TEST_FLAG', raw);
                 expect(readFlag('ORTHACMS_TEST_FLAG', true)).toBe(false);
             }
+        });
+
+        it('refuses anything else instead of reading it as off', () => {
+            // `COPILOT_ENABLED=yes` used to switch the copilot off in silence,
+            // and an email-verification override spelt `ture` was a decision
+            // the operator believed they had made.
+            for (const raw of ['yes', 'ture', 'on', '2']) {
+                set('ORTHACMS_TEST_FLAG', raw);
+                expect(() => readFlag('ORTHACMS_TEST_FLAG', false)).toThrow(
+                    /ORTHACMS_TEST_FLAG must be true or false/
+                );
+            }
+        });
+    });
+
+    describe('readEnum', () => {
+        const MODES = ['off', 'signed-url'] as const;
+
+        it('falls back when unset or empty', () => {
+            set('ORTHACMS_TEST_ENUM', undefined);
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe('off');
+            set('ORTHACMS_TEST_ENUM', '');
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe('off');
+        });
+
+        it('reads an allowed value', () => {
+            set('ORTHACMS_TEST_ENUM', 'signed-url');
+            expect(readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toBe(
+                'signed-url'
+            );
+        });
+
+        it('refuses a near miss and lists what it accepts', () => {
+            // `signed_url` used to read as `off`.
+            set('ORTHACMS_TEST_ENUM', 'signed_url');
+            expect(() => readEnum('ORTHACMS_TEST_ENUM', MODES, 'off')).toThrow(
+                'ORTHACMS_TEST_ENUM must be one of off, signed-url (got "signed_url")'
+            );
+        });
+    });
+
+    describe('a _FILE twin', () => {
+        let dir: string;
+        beforeEach(() => {
+            dir = mkdtempSync(join(tmpdir(), 'orthacms-env-'));
+        });
+        afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+        it('reads the secret from the file it names, trimmed', () => {
+            const file = join(dir, 'db');
+            writeFileSync(file, 'postgresql://secret\n');
+            set('ORTHACMS_TEST_SECRET', undefined);
+            set('ORTHACMS_TEST_SECRET_FILE', file);
+            expect(readEnv('ORTHACMS_TEST_SECRET')).toBe('postgresql://secret');
+            expect(requireEnv('ORTHACMS_TEST_SECRET')).toBe(
+                'postgresql://secret'
+            );
+        });
+
+        it('loses to the variable itself', () => {
+            const file = join(dir, 'db');
+            writeFileSync(file, 'from-file');
+            set('ORTHACMS_TEST_SECRET', 'direct');
+            set('ORTHACMS_TEST_SECRET_FILE', file);
+            expect(readEnv('ORTHACMS_TEST_SECRET')).toBe('direct');
+        });
+
+        it('feeds the list reader too', () => {
+            const file = join(dir, 'list');
+            writeFileSync(file, 'a, b');
+            set('ORTHACMS_TEST_LIST', undefined);
+            set('ORTHACMS_TEST_LIST_FILE', file);
+            expect(readList('ORTHACMS_TEST_LIST', 'x')).toEqual(['a', 'b']);
+        });
+
+        it('refuses a file that is not there, naming both', () => {
+            set('ORTHACMS_TEST_SECRET', undefined);
+            set('ORTHACMS_TEST_SECRET_FILE', join(dir, 'missing'));
+            expect(() => readEnv('ORTHACMS_TEST_SECRET')).toThrow(
+                /ORTHACMS_TEST_SECRET_FILE points at .*missing/
+            );
+        });
+    });
+
+    describe('renamed variables', () => {
+        it('reads the old name and warns once that it moved', () => {
+            const warn = jest.spyOn(console, 'warn').mockImplementation();
+            set('PUBLIC_URL', undefined);
+            set('APP_URL', 'https://cms.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://cms.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://cms.example.com');
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(
+                'APP_URL has been renamed to PUBLIC_URL'
+            );
+            warn.mockRestore();
+        });
+
+        it('prefers the current name when both are set', () => {
+            set('PUBLIC_URL', 'https://current.example.com');
+            set('APP_URL', 'https://legacy.example.com');
+            expect(readEnv('PUBLIC_URL')).toBe('https://current.example.com');
         });
     });
 

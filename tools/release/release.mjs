@@ -12,8 +12,10 @@
  * undone, and a version number can never be reused. Pass `--yes` to skip it
  * only for an unattended run.
  *
- * Credentials come from `.env` at the workspace root (git-ignored), which
- * this script loads before handing off to `nx release`:
+ * Credentials come from `.env.release` at the workspace root (git-ignored),
+ * which this script loads before handing off to `nx release` — kept apart
+ * from the app's `.env`, which nothing about publishing belongs in. A `.env`
+ * that still holds them is read as a fallback:
  *
  *     NPM_TOKEN=npm_…             # automation token with publish rights on @orthacms
  *     GITHUB_TOKEN=ghp_…          # a token that can create a release on this repo
@@ -88,13 +90,16 @@ process.exit(result.status ?? 1);
 /**
  * Node's own `.env` loader — it leaves anything already exported in the shell
  * alone, so `GITHUB_TOKEN=… npm run release` still overrides the file.
+ * `.env.release` first; `.env`, where the tokens used to live, as a fallback.
  */
 function loadDotEnv() {
-    const envFile = join(workspaceRoot, '.env');
+    const envFile = ['.env.release', '.env']
+        .map((name) => join(workspaceRoot, name))
+        .find((path) => existsSync(path));
 
-    if (!existsSync(envFile)) {
+    if (!envFile) {
         console.log(
-            'release: no .env at the workspace root; using the shell environment only'
+            'release: no .env.release at the workspace root; using the shell environment only'
         );
         return;
     }
@@ -106,7 +111,7 @@ function loadDotEnv() {
     }
 
     process.loadEnvFile(envFile);
-    console.log('release: loaded .env');
+    console.log(`release: loaded ${envFile.slice(workspaceRoot.length + 1)}`);
 }
 
 /**
@@ -121,8 +126,8 @@ function configureNpmAuth() {
         const user = whoamiOrNull();
         if (!user) {
             fail(
-                'release: no NPM_TOKEN in .env and npm is not logged in.\n' +
-                    '        Add NPM_TOKEN=… to .env, or run `npm login`.'
+                'release: no NPM_TOKEN in .env.release and npm is not logged in.\n' +
+                    '        Add NPM_TOKEN=… to .env.release, or run `npm login`.'
             );
         }
         console.log(
@@ -154,9 +159,9 @@ function requireGithubToken() {
     }
 
     fail(
-        'release: no GITHUB_TOKEN in .env, so the GitHub Release step would fail\n' +
+        'release: no GITHUB_TOKEN in .env.release, so the GitHub Release step would fail\n' +
             '        after the version had already been committed, tagged and pushed.\n' +
-            '        Add GITHUB_TOKEN=… to .env (a token with `repo` access), or pass\n' +
+            '        Add GITHUB_TOKEN=… to .env.release (a token with `repo` access), or pass\n' +
             '        --dry-run to rehearse without it.'
     );
 }

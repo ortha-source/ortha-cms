@@ -13,7 +13,7 @@ Server-side shared utilities for Ortha CMS. Three concerns:
   to fix something that isn't wrong.
 - **Environment readers** (`env.ts`) — `readEnv`, `requireEnv`,
   `readPositiveInt` / `readOptionalPositiveInt`, `readList` /
-  `readOptionalList`, `readFlag`, `readTrustProxy`, `readNodeEnv` /
+  `readOptionalList`, `readFlag`, `readEnum`, `readTrustProxy`, `readNodeEnv` /
   `isProduction`, plus `when` and `defined`. What a host's `orthacms.config.ts`
   turns `process.env` into. Here rather than in each host because this repo's
   host and the scaffolder's template had a copy each and they had already
@@ -61,6 +61,20 @@ Four things here are decisions rather than details:
   a leaf helper package and the host that imports it must not become a
   dependency of it; the host's own `trustProxy?: TrustProxySetting` field is
   what checks the two still agree.
+
+Two more refusals are worth knowing, because both replaced a silent default:
+
+- **`readFlag` throws on anything but `true`/`false`/`1`/`0`** (any case). It
+  used to read every other spelling as off, which kept a misspelt kill switch
+  shut but also turned `COPILOT_ENABLED=1` off and made
+  `SSO_SAML_EMAIL_VERIFIED=yes` a decision the operator only believed they had
+  made. **`readEnum`** does the same for a fixed set of values: the
+  `MEDIA_DIRECT_SERVE` it replaced read `signed_url` as `off`.
+- **`RENAMED`** maps a variable's current name to the names it used to have.
+  `readEnv` falls back to an old name, warns once per process, and lets the
+  current name win when both are set — so a rename never breaks a deployment
+  on upgrade. It lives here because the template and this repo's host must
+  accept exactly the same names.
 
 `isProduction` is a **function**, not a constant, because a library cannot
 decide when a host reads its environment. `apps/server/config/env.ts` re-derives

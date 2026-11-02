@@ -219,7 +219,7 @@ Tracked in their own `__drizzle_migrations_database` table, exactly as for any o
 
 > **Retention, and what it deliberately cannot reach**
 >
-> **Delivered** rows are pruned. `OUTBOX_RETENTION_DAYS` (default 30, `0` = never) sets the window; `OutboxDispatcher.pruneDelivered(before)` does the deleting, in batches of 1,000 through a `FOR UPDATE SKIP LOCKED` sub-select, and a private `pruneIfDue` calls it at the tail of a poll tick at most once an hour. No new timer, and no bookkeeping table — the "last swept" mark is an in-process field (I-23), claimed before the sweep so two cannot overlap and **handed back if it throws**, so a failed sweep is retried on the next tick rather than buying an hour of silence.
+> **Delivered** rows are pruned. `outboxRetentionDays` (30 in the host's config, `0` = never) sets the window; `OutboxDispatcher.pruneDelivered(before)` does the deleting, in batches of 1,000 through a `FOR UPDATE SKIP LOCKED` sub-select, and a private `pruneIfDue` calls it at the tail of a poll tick at most once an hour. No new timer, and no bookkeeping table — the "last swept" mark is an in-process field (I-23), claimed before the sweep so two cannot overlap and **handed back if it throws**, so a failed sweep is retried on the next tick rather than buying an hour of silence.
 >
 > The predicate is `dispatched_at IS NOT NULL AND dispatched_at < cutoff`, and the second half of that sentence is the whole safety argument: a **pending** row and a **parked** one both carry `dispatched_at IS NULL`, so they are excluded **by construction rather than by a clause**. There is deliberately no `AND attempts < 15`; it would mean the same thing today and be the thing a later edit breaks. Nothing deletes a dead letter by age, ever — a parked row is the only evidence that something was never recorded, and a sweep that took one would make an audit gap invisible again.
 >
@@ -685,7 +685,7 @@ Several server replicas work the same queue correctly and without configuration:
 
 > **Known rough edges**
 >
-> **Retention only reaches delivered rows — by design, and it is worth knowing.** The sweep removes rows stamped `dispatched_at` before the cutoff; pending and parked rows are never removed by age. So an installation whose subscriber is permanently broken still accumulates dead letters without bound, and the answer is to fix the cause and retry them, not to widen the sweep. A deployment that sets `OUTBOX_RETENTION_DAYS=0` is back to the old behaviour — monotonic growth — deliberately.
+> **Retention only reaches delivered rows — by design, and it is worth knowing.** The sweep removes rows stamped `dispatched_at` before the cutoff; pending and parked rows are never removed by age. So an installation whose subscriber is permanently broken still accumulates dead letters without bound, and the answer is to fix the cause and retry them, not to widen the sweep. A host that sets `outboxRetentionDays: 0` is back to the old behaviour — monotonic growth — deliberately.
 >
 > **The sweep is per process and in memory.** `lastPrunedAt` is a field, so N replicas each sweep hourly (harmless — `SKIP LOCKED`, and the second one finds nothing), and a process restarted every few minutes never sweeps at all.
 >

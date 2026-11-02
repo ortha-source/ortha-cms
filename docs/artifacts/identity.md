@@ -277,7 +277,7 @@ Ordinary code at the composition root returning a role key or `null`. An unknown
 
 #### Signing out on the provider's signal
 
-`POST /api/auth/sso/:provider/backchannel-logout` is the only mechanism that ends a session here _immediately_ when somebody is disabled in the corporate directory. Without it, the honest answer to "we fired them, are they out?" would be "within `SESSION_TTL_SECONDS`".
+`POST /api/auth/sso/:provider/backchannel-logout` is the only mechanism that ends a session here _immediately_ when somebody is disabled in the corporate directory. Without it, the honest answer to "we fired them, are they out?" would be "within the session lifetime".
 
 - **`sid`** in the notification closes only the sessions opened by that provider session: a laptop and a phone signed in through two different provider sessions do not kill each other.
 - **`sub` without `sid`** closes every session of the linked account. That is the termination case, and the bluntness is the point.

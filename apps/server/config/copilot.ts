@@ -4,14 +4,12 @@ import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthrop
 import type { OpenAiProviderConfig } from '@orthacms/copilot-provider-openai';
 
 import {
-    defined,
-    readEnv,
-    readFlag,
-    readList,
-    readOptionalPositiveInt,
-    readPositiveInt,
-    when
-} from '@orthacms/utils-server';
+    anthropicFromEnv,
+    copilotEnabled,
+    copilotQuotasFromEnv,
+    openAiFromEnv
+} from '@orthacms/config';
+import { defined } from '@orthacms/utils-server';
 
 /**
  * Copilot settings, plus the connection settings for the model backends this
@@ -60,105 +58,23 @@ export interface OrthaCmsCopilotConfig extends CopilotPluginConfig {
 /** The copilot kill switch, its run ceilings, and the backends it can reach. */
 export function copilotConfig(): OrthaCmsCopilotConfig {
     return defined({
-        // Off by default (ADR-0005 §10). Enabling a hosted provider sends
-        // workspace content to a third party, so an operator opts in.
-        enabled: readFlag('COPILOT_ENABLED', false),
-        maxOutputTokens: readPositiveInt('COPILOT_MAX_OUTPUT_TOKENS', 8_192),
-        limits: copilotLimits(),
-        quotas: copilotQuotas(),
-        providers: copilotProviders()
-    });
-}
-
-/**
- * The copilot's run ceilings, or nothing at all when the deployment set none.
- *
- * Each key is dropped rather than passed as `undefined`, because the engine
- * merges `{ ...DEFAULT_RUN_LIMITS, ...config.limits }` — an explicit `undefined`
- * erases the default instead of leaving it. The whole object goes away when
- * nothing is set, so an untouched `.env` leaves the plugin's defaults visible
- * rather than pinning them here.
- *
- * All three are exposed, not just `maxSteps`. They are checked in the same
- * loop, so an operator who raises one alone moves the wall rather than lifting
- * it: a run given more steps but the same wall clock stops on `timeout`
- * instead, which reads to the user as the same truncated answer. Zero is
- * rejected rather than silently ignored — `maxSteps: 0` skips the run loop
- * entirely, yielding a thread that shows a question and then silence, which is
- * why `CopilotPlugin` refuses it at construction too.
- *
- * Raising these costs tokens rather than safety — every step is still
- * authorized and audited, and a `propose` tool still writes its row before it
- * writes anything else.
- */
-function copilotLimits(): CopilotPluginConfig['limits'] | undefined {
-    const limits = defined({
-        maxSteps: readOptionalPositiveInt('COPILOT_MAX_STEPS'),
-        wallClockMs: readOptionalPositiveInt('COPILOT_WALL_CLOCK_MS'),
-        maxTotalTokens: readOptionalPositiveInt('COPILOT_MAX_TOTAL_TOKENS')
-    });
-    return when(Object.keys(limits).length > 0, () => limits);
-}
-
-/**
- * The copilot's usage limits — daily token quotas, runs per minute, runs in
- * flight — or nothing at all when the deployment set none.
- *
- * The same rules as {@link copilotLimits}, for the same reasons: each key is
- * dropped rather than passed as `undefined`, and zero is rejected rather than
- * read as "off" — an empty value is what off looks like. Unlike the ceilings
- * there are no defaults behind these: an absent quota is no quota.
- */
-function copilotQuotas(): CopilotPluginConfig['quotas'] | undefined {
-    const quotas = defined({
-        userDailyTokens: readOptionalPositiveInt('COPILOT_USER_DAILY_TOKENS'),
-        workspaceDailyTokens: readOptionalPositiveInt(
-            'COPILOT_WORKSPACE_DAILY_TOKENS'
-        ),
-        runsPerMinute: readOptionalPositiveInt('COPILOT_RUNS_PER_MINUTE'),
-        maxConcurrentRuns: readOptionalPositiveInt(
-            'COPILOT_MAX_CONCURRENT_RUNS'
-        )
-    });
-    return when(Object.keys(quotas).length > 0, () => quotas);
-}
-
-/**
- * The model backends this deployment can actually reach, in preference order.
- *
- * Each is here only if it was configured. Registering one that cannot answer
- * used to be harmless because `COPILOT_PROVIDER` decided who served a run; now
- * the first registered provider does, so a keyless `claude` sitting at the top
- * of the list would be the default and would fail on the first message. Absent
- * instead, it is not in the catalogue, not in the picker, and not a default
- * anybody has to override.
- */
-function copilotProviders(): OrthaCmsCopilotConfig['providers'] {
-    const anthropicApiKey = readEnv('ANTHROPIC_API_KEY');
-    const openAiBaseUrl = readEnv('COPILOT_OPENAI_BASE_URL');
-    return defined({
-        claude: when(anthropicApiKey, () =>
-            defined({
-                apiKey: anthropicApiKey as string,
-                // Stable product configuration, so literals like the i18n
-                // locales. First is the default; the rest are what a user can
-                // switch to mid-conversation. Comma-separated env override for
-                // pinning a different set without a redeploy.
-                models: readList(
-                    'COPILOT_ANTHROPIC_MODELS',
-                    'claude-opus-5,claude-sonnet-5,claude-haiku-4-5'
-                ),
-                baseUrl: readEnv('ANTHROPIC_BASE_URL')
-            })
-        ),
-        ollama: when(openAiBaseUrl, () => ({
-            // A local Ollama is http://localhost:11434/v1 — point it at vLLM,
-            // LiteLLM, Azure or OpenAI instead. No default: an unset variable
-            // means "this deployment has no such backend", not "assume one is
-            // running on this laptop".
-            baseUrl: openAiBaseUrl as string,
-            models: readList('COPILOT_OPENAI_MODELS', 'llama3.1'),
-            apiKey: readEnv('COPILOT_OPENAI_API_KEY') ?? ''
-        }))
+        enabled: copilotEnabled(),
+        // Ceiling on a single model response, in tokens.
+        maxOutputTokens: 8_192,
+        // The run ceilings — code, not environment. A run over any of them
+        // stops with a reason the chat shows; raise them together, because
+        // they are checked in one loop and lifting one alone moves the wall.
+        // Unset, the plugin's own defaults (30 steps, 5 minutes, 400k tokens)
+        // apply:
+        //   limits: { maxSteps: 60, wallClockMs: 600_000, maxTotalTokens: 800_000 },
+        // Usage limits, each off when unset; they live in Postgres, so they
+        // hold across instances.
+        quotas: copilotQuotasFromEnv(),
+        providers: defined({
+            // Order is preference: the first registered backend serves a run
+            // that names none and is what the model picker opens on.
+            claude: anthropicFromEnv(),
+            ollama: openAiFromEnv()
+        })
     });
 }

@@ -145,16 +145,18 @@ instead of opening an empty hand-off dialog.
 
 ## 9. Configuration
 
-| Key                          | Notes                                                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `MAIL_PROVIDER`              | `smtp` or `console`. Unset — the default — is a complete configuration: nothing is sent and the links come back in the API. |
-| `APP_URL`                    | **Required** with a provider. Every link is built from it.                                                                  |
-| `MAIL_FROM`, `MAIL_REPLY_TO` | Sender identity.                                                                                                            |
-| `MAIL_PRODUCT_NAME`          | What the copy calls the product.                                                                                            |
-| `MAIL_REVEAL_LINKS`          | Return the link **and** send the message. A delivery-debugging mode, labelled as one.                                       |
-| `MAIL_DELIVERY_INTERVAL_MS`  | `0` queues without sending from this process.                                                                               |
-| `MAIL_MAX_ATTEMPTS`          | Attempts before a message becomes a dead letter.                                                                            |
-| `SMTP_*`                     | The relay, read only when `MAIL_PROVIDER=smtp`.                                                                             |
+| Key                 | Notes                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MAIL_URL`          | `smtp://user:password@host:587`, `smtps://` (implicit TLS), `?requireTls=true`, or `console://` (the repository's host only). Unset — the default — is a complete configuration: nothing is sent and the links come back in the API. |
+| `PUBLIC_URL`        | Every link is built from it. Required in production anyway; outside it, the admin dev server.                                                                                                                                        |
+| `MAIL_FROM`         | **Required** with a relay. `MAIL_REPLY_TO` is optional.                                                                                                                                                                              |
+| `MAIL_PRODUCT_NAME` | What the copy calls the product.                                                                                                                                                                                                     |
+| `MAIL_REVEAL_LINKS` | Return the link **and** send the message. A delivery-debugging mode, labelled as one.                                                                                                                                                |
+| `ORTHACMS_WORKERS`  | `false` queues without sending from this process (the worker reads it as `deliveryIntervalMs: 0`).                                                                                                                                   |
+
+`MAIL_PROVIDER` and `SMTP_*` are still read, with a warning, until the next
+release. Retry counts and the poll interval are code (`maxAttempts`,
+`deliveryIntervalMs` in the host's `config/mail.ts`), not environment.
 
 Provider credentials are not in `MailPluginConfig`: they belong to the factory
 the host imports, the same arrangement media and the copilot use.

@@ -19,6 +19,7 @@ will diverge from these.
 
 | Package             | File                                             |
 | ------------------- | ------------------------------------------------ |
+| config              | [config.md](config.md)                           |
 | identity            | [identity.md](identity.md)                       |
 | users               | [users.md](users.md)                             |
 | workspaces          | [workspaces.md](workspaces.md)                   |

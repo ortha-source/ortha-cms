@@ -55,7 +55,7 @@ type InviteLinkPanelProps = {
  * capture it.
  *
  * It exists for deployments with no mail provider configured — the default —
- * where the admin is the delivery channel. With one (`MAIL_PROVIDER`), the
+ * where the admin is the delivery channel. With one (`MAIL_URL`), the
  * server emails the invitation, returns no token, and this is never shown.
  */
 export function InviteLinkPanel({

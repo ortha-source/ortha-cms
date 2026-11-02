@@ -108,6 +108,9 @@ export interface Feature {
  * generated manifest says, so the app owns the resolution rather than
  * borrowing it.
  *
+ * `config` is what every module under the template's `apps/server/config/`
+ * reads the environment through, so it is core by construction.
+ *
  * `design-system`, `utils-admin` and `utils-server` are here even though the
  * template's own files barely touch them: they are the first things anyone
  * reaches for when writing a page or a plugin of their own, and relying on
@@ -123,6 +126,7 @@ export const CORE_PACKAGES: readonly string[] = [
     '@orthacms/api-tokens-admin',
     '@orthacms/bootstrap-admin',
     '@orthacms/bootstrap-server',
+    '@orthacms/config',
     '@orthacms/content-admin',
     '@orthacms/content-domain',
     '@orthacms/content-server',
@@ -387,7 +391,7 @@ export const PROTOCOLS: readonly Feature[] = [
  * relay, and plenty of them send through none. Pick nothing and the app behaves
  * as the product always has — the invite response carries the raw link for an
  * administrator to pass on by hand, with no queue, no worker and no
- * `MAIL_PROVIDER` to set ([ADR-0018](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0018-mail-provider.md)).
+ * `MAIL_URL` to set ([ADR-0018](https://github.com/ortha-source/ortha-cms/blob/main/docs/adr/0018-mail-provider.md)).
  *
  * **One entry covers the market**, the way the OIDC adapter covers the identity
  * vendors: Resend, SES, Postmark, SendGrid, Mailgun, Google Workspace,
@@ -416,7 +420,7 @@ export const MAIL_PROVIDERS: readonly Feature[] = [
     {
         id: 'mail-smtp',
         label: 'SMTP relay',
-        hint: 'Resend, SES, Postmark, SendGrid, Mailgun, Google Workspace, or a relay of your own. Needs SMTP_HOST, MAIL_FROM and APP_URL.',
+        hint: 'Resend, SES, Postmark, SendGrid, Mailgun, Google Workspace, or a relay of your own. Needs MAIL_URL and MAIL_FROM.',
         packages: ['@orthacms/mail-server', '@orthacms/mail-provider-smtp'],
         enabledByDefault: false,
         available: true

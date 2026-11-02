@@ -382,7 +382,7 @@ describe('every core plugin package is actually mounted', () => {
  * on what the operator later put in `.env`.
  *
  * The second condition is why it cannot ride the `EXPECTED_PLUGINS` comparison
- * above — `buildPlugins` registers it only when `MAIL_PROVIDER` names a
+ * above — `buildPlugins` registers it only when `MAIL_URL` names a
  * backend, so neither side of that comparison can name it and nothing else
  * would notice the whole feature going missing from the template. This is that
  * notice: scaffolding with a backend has to produce the import, the
@@ -403,7 +403,7 @@ describe('the mail plugin', () => {
             plugins.indexOf('UsersPlugin()')
         );
         expect(rendered('apps/server/config/mail.ts')).toContain(
-            'MAIL_PROVIDER'
+            "mailFromEnv(['smtp'])"
         );
     });
 

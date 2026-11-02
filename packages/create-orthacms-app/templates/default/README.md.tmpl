@@ -5,12 +5,22 @@ An [Ortha CMS](https://github.com/ortha-source/ortha-cms) app.
 ## Getting started
 
 ```sh
+npx orthacms setup     # Postgres, migrations, checks, your admin account
+npm run dev            # API on :3000, admin on :4200
+```
+
+`orthacms setup` asks a few questions, checks every connection as it goes and
+creates the administrator in the database, so no password stays in `.env`. Run
+it again any time to change one section. Without it, the manual route still
+works:
+
+```sh
 docker compose up -d   # Postgres
 npm run migrate        # create the schema
 npm run dev            # API on :3000, admin on :4200
 ```
 
-Sign in at <http://localhost:4200> with the admin credentials in `.env`
+and you sign in at <http://localhost:4200> with the admin credentials in `.env`
 (`ORTHACMS_ROOT_ADMIN_EMAIL` / `ORTHACMS_ROOT_ADMIN_PASSWORD`). That account is
 provisioned on boot, idempotently — clear those two variables once you have it.
 
@@ -25,6 +35,8 @@ provisioned on boot, idempotently — clear those two variables once you have it
 | `npm run content:sync` | Rewrites `apps/server/src/content/index.ts` from the type files beside it |
 | `npm run generate -- --name=<name>` | Generates a migration for your own content tables (`apps/server/drizzle.config.ts`) |
 | `npm run studio` | Opens Drizzle Studio on this app's database |
+| `npx orthacms setup` | Asks where this app runs, writes the settings, checks each one, creates the first admin — re-run it to change one section |
+| `npx orthacms doctor` | Shows the configuration in effect, checks the database, mail and anything else it points at, and says what is wrong |
 | `npm test` | Unit tests — both halves |
 | `npm run e2e` | Both end-to-end suites |
 | `npm run e2e:server` | API tests against a real database |
@@ -170,16 +182,16 @@ cannot answer.
 <!-- orthacms:if mail -->
 ### Outgoing mail
 
-Installed, and **off** until `MAIL_PROVIDER=smtp` is set in `.env`. With it
+Installed, and **off** until `MAIL_URL` names a relay in `.env`
+(`smtp://user:password@smtp.example.com:587`, or `smtps://` on port 465). With it
 empty this app sends nothing: no queue, no worker, and the invite and reset
 routes hand the raw link back for you to pass on — which is a complete
 configuration, and the one a fresh app runs in, so `npm run dev` works before
 you have a relay.
 
-Setting it makes two more variables required, and the app refuses to boot
-without them: `APP_URL`, because every link in a message is built from it, and
-`MAIL_FROM`, because a message with no sender is refused by every relay. The
-URL is deliberately not taken from the request — the caller controls the `Host`
+Setting it makes `MAIL_FROM` required — a message with no sender is refused by
+every relay — and every link in a message is built from `PUBLIC_URL`, which
+production requires anyway. The URL is deliberately not taken from the request — the caller controls the `Host`
 header, and an invitation is the one message a recipient is certain to click.
 
 It also changes the API: with mail configured the invite and reset routes stop
@@ -241,6 +253,13 @@ the admin bundle on one origin. Set in the environment:
 - `DATABASE_URL` — required
 - `NODE_ENV=production` — spelled exactly; anything else drops `Secure` from the
   session cookie and publishes the API reference
+- `PUBLIC_URL` — the address people open the admin on, e.g.
+  `https://cms.example.com`. Sign-in accepts only that origin (browsers send
+  `Origin` on every sign-in), and SSO callbacks and email links are built from
+  it; production refuses to start without it
 - `TRUST_PROXY` — required behind a load balancer, or every client shares one
   rate-limit bucket
 - `MEDIA_LOCAL_ROOT` — a persistent volume, or uploads vanish on each deploy
+
+Any of them can come from a file instead (`DATABASE_URL_FILE=/run/secrets/db`).
+`npx orthacms doctor` shows what is in effect and where each value came from.

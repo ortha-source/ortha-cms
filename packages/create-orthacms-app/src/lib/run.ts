@@ -479,6 +479,42 @@ export async function main(
         process.exitCode = 1;
     }
 
+    // Hand over to `orthacms setup`, which starts Postgres, migrates, checks
+    // each connection and creates the administrator in the database — after
+    // which the password generated below no longer needs to sit in .env. Only
+    // when someone is there to answer it, and only with the app installed.
+    if (
+        installed &&
+        !flag(argv, 'no-install') &&
+        !flag(argv, 'yes') &&
+        ui.interactive()
+    ) {
+        console.log('');
+        const next = await ui.select('Run `orthacms setup` now?', [
+            {
+                value: 'setup',
+                label: 'Yes — database, migrations, checks and your admin account',
+                selected: true
+            },
+            {
+                value: 'later',
+                label: 'Later — I will run `npx orthacms setup` myself'
+            }
+        ]);
+        if (next === 'setup') {
+            if (runCommand('npx', ['orthacms', 'setup'], target)) {
+                ui.nextSteps([
+                    `cd ${basename(target)}`,
+                    `npm run dev        ${ui.dim('→ http://localhost:4200')}`
+                ]);
+                return;
+            }
+            ui.error(
+                '`orthacms setup` did not finish — run `npx orthacms setup` in the new directory to pick it up.'
+            );
+        }
+    }
+
     ui.summary('Your admin account', [
         ['Email', answers.adminEmail],
         ['Password', ui.bold(adminPassword)],
@@ -488,8 +524,7 @@ export async function main(
     ui.nextSteps([
         `cd ${basename(target)}`,
         ...(flag(argv, 'no-install') ? ['npm install'] : []),
-        'docker compose up -d',
-        'npm run migrate',
+        `npx orthacms setup  ${ui.dim('→ database, migrations, checks, your admin')}`,
         `npm run dev        ${ui.dim('→ http://localhost:4200')}`
     ]);
 }

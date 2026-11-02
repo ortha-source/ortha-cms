@@ -9,13 +9,8 @@ import type { GithubProviderConfig } from '@orthacms/identity-provider-github';
 // orthacms:if sso-saml
 import type { SamlProviderConfig } from '@orthacms/identity-provider-saml';
 // orthacms:end
-import {
-    defined,
-    isProduction,
-    readEnv,
-    readList,
-    readPositiveInt
-} from '@orthacms/utils-server';
+import { allowedOrigins, rootAdminFromEnv, ssoFromEnv } from '@orthacms/config';
+import { defined, isProduction } from '@orthacms/utils-server';
 
 // orthacms:if sso-oidc
 import { oidcProvider } from './sso-oidc';
@@ -53,7 +48,7 @@ export interface AppIdentityConfig extends IdentityPluginConfig {
         github?: GithubProviderConfig & { name: string };
         // orthacms:end
         // orthacms:if sso-saml
-        /** A SAML 2.0 identity provider. Present when all three env vars are set. */
+        /** A SAML 2.0 identity provider. Present when the entry point and certificate are set. */
         saml?: SamlProviderConfig & { name: string };
         // orthacms:end
     };
@@ -62,29 +57,26 @@ export interface AppIdentityConfig extends IdentityPluginConfig {
 /** Identity — sessions, tokens, the SSO handshake, and the first admin. */
 export function identityConfig(): AppIdentityConfig {
     return {
-        // Origins allowed to make state-changing calls (login-CSRF defence).
-        // In development that is the Vite dev server; in production the app is
-        // same-origin, so this list is what a separately-hosted admin would
-        // need adding to.
-        allowedOrigins: readList(
-            'ALLOWED_ORIGINS',
-            `http://localhost:${readPositiveInt('ADMIN_PORT', 4200)}`
-        ),
+        // Origins allowed to sign in and make changes (login-CSRF defence).
+        // `PUBLIC_URL`'s origin, then `EXTRA_ORIGINS`, then — outside
+        // production — the dev server and `PORT`, which is where `npm start`
+        // serves the admin. A browser sends `Origin` on every POST, same-origin
+        // included. Production without `PUBLIC_URL` refuses to start.
+        allowedOrigins: allowedOrigins(),
+        // Lifetimes and the login rate limit are code: a value set by accident
+        // in the environment would be a security setting changed in silence.
         session: {
-            ttlSeconds: readPositiveInt('SESSION_TTL_SECONDS', 60 * 60 * 24 * 7),
+            ttlSeconds: 60 * 60 * 24 * 7,
             cookieSecure: isProduction(),
             cookieSameSite: 'lax' as const
         },
         token: {
-            inviteTtlSeconds: readPositiveInt(
-                'INVITE_TTL_SECONDS',
-                60 * 60 * 24 * 7
-            ),
-            resetTtlSeconds: readPositiveInt('RESET_TTL_SECONDS', 60 * 60)
+            inviteTtlSeconds: 60 * 60 * 24 * 7,
+            resetTtlSeconds: 60 * 60
         },
         rateLimit: {
-            ttlSeconds: readPositiveInt('LOGIN_RATE_LIMIT_TTL_SECONDS', 60),
-            limit: readPositiveInt('LOGIN_RATE_LIMIT', 10)
+            ttlSeconds: 60,
+            limit: 10
         },
         sso: ssoConfig(),
         // orthacms:if sso
@@ -100,16 +92,10 @@ export function identityConfig(): AppIdentityConfig {
             // orthacms:end
         }),
         // orthacms:end
-        // With an email set, an admin is provisioned on boot — idempotent and
-        // non-destructive. This is how you get your first login.
-        // Read through `readEnv`, so all three are trimmed and a whitespace-only
-        // value is nothing rather than a value — a password of three spaces
-        // would otherwise be provisioned as the administrator's, silently.
-        rootAdmin: {
-            email: readEnv('ORTHACMS_ROOT_ADMIN_EMAIL') ?? '',
-            password: readEnv('ORTHACMS_ROOT_ADMIN_PASSWORD') ?? '',
-            name: readEnv('ORTHACMS_ROOT_ADMIN_NAME') ?? ''
-        }
+        // With `ORTHACMS_ROOT_ADMIN_EMAIL` set, an admin is provisioned on boot —
+        // idempotent and non-destructive. A password of spaces is nothing, not
+        // a password.
+        rootAdmin: rootAdminFromEnv()
     };
 }
 
@@ -119,11 +105,11 @@ export function identityConfig(): AppIdentityConfig {
  */
 function ssoConfig(): NonNullable<IdentityPluginConfig['sso']> {
     return defined({
-        // The origin browsers reach this API on. It builds the redirect_uri
-        // you register with each provider, and it is configured rather than
-        // read from the request's Host header, which a client controls. Leave
-        // it unset when the admin and the API share an origin — the usual case.
-        publicBaseUrl: readEnv('SSO_PUBLIC_BASE_URL'),
-        requestTtlSeconds: readPositiveInt('SSO_REQUEST_TTL_SECONDS', 600)
+        // Where SSO callbacks are built from (`API_PUBLIC_URL`, else the first
+        // allowed origin), who single sign-on may create an account for
+        // (`SSO_PROVISION_DOMAINS`), and whether passwords still work.
+        ...ssoFromEnv(),
+        // How long one sign-in attempt stays live, in seconds.
+        requestTtlSeconds: 600
     });
 }

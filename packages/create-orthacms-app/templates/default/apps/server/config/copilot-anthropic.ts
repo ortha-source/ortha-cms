@@ -1,22 +1,14 @@
 // orthacms:if copilot-anthropic
 import type { AnthropicProviderConfig } from '@orthacms/copilot-provider-anthropic';
-import { readEnv, readList } from '@orthacms/utils-server';
+import { anthropicFromEnv } from '@orthacms/config';
 
 /**
- * Native Claude, or nothing.
- *
- * Setting the key is what REGISTERS this backend — leave it empty and there is
- * no `claude` in the picker at all, rather than one that fails on the first
- * message.
+ * Claude, or nothing. `ANTHROPIC_API_KEY` is what registers it — leave it
+ * empty and there is no `claude` in the model picker at all, rather than one
+ * that fails on the first message. `COPILOT_ANTHROPIC_MODELS` lists what
+ * people may pick; the first is the default.
  */
 export function anthropicProvider(): AnthropicProviderConfig | undefined {
-    const apiKey = readEnv('ANTHROPIC_API_KEY');
-    if (!apiKey) {
-        return undefined;
-    }
-    return {
-        apiKey,
-        models: readList('COPILOT_ANTHROPIC_MODELS', 'claude-sonnet-5')
-    };
+    return anthropicFromEnv();
 }
 // orthacms:end

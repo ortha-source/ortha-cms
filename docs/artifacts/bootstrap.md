@@ -708,15 +708,15 @@ createServer({
 });
 ```
 
-| Variable         | Read by                                | What it becomes                                                                | Default                           |
-| ---------------- | -------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------- |
-| PORT             | orthacms.config.ts                     | `createServer.port`                                                            | 3000                              |
-| TRUST_PROXY      | orthacms.config.ts                     | `trustProxy`: a hop count → a boolean → a preset string, checked in that order | unset — proxy headers are ignored |
-| MAX_REQUEST_BODY | orthacms.config.ts                     | `bodyLimit`                                                                    | `'1mb'`                           |
-| API_DOCS         | orthacms.config.ts                     | `docs.enabled`                                                                 | `NODE_ENV !== 'production'`       |
-| NODE_ENV         | **the host itself**, in `setupApiDocs` | the default for `docs.enabled` when the option is not passed                   | —                                 |
-| DATABASE_URL     | orthacms.config.ts                     | the `database` plugin's configuration, not the host's                          | required                          |
-| ADMIN_PORT       | orthacms.config.ts                     | the dev admin UI's origin, for plugin settings; nothing to do with the host    | 4200                              |
+| Variable     | Read by                                 | What it becomes                                                                | Default                                                 |
+| ------------ | --------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| PORT         | orthacms.config.ts                      | `createServer.port`                                                            | 3000                                                    |
+| TRUST_PROXY  | orthacms.config.ts                      | `trustProxy`: a hop count → a boolean → a preset string, checked in that order | unset — proxy headers are ignored                       |
+| PUBLIC_URL   | orthacms.config.ts (`@orthacms/config`) | identity's allowed origins, the SSO callbacks, links in emails                 | localhost:ADMIN_PORT outside production; required in it |
+| API_DOCS     | orthacms.config.ts                      | `docs.enabled`                                                                 | `NODE_ENV !== 'production'`                             |
+| NODE_ENV     | **the host itself**, in `setupApiDocs`  | the default for `docs.enabled` when the option is not passed                   | —                                                       |
+| DATABASE_URL | orthacms.config.ts                      | the `database` plugin's configuration, not the host's                          | required                                                |
+| ADMIN_PORT   | orthacms.config.ts                      | the dev admin UI's origin, for plugin settings; nothing to do with the host    | 4200                                                    |
 
 > **The one environment read inside the host**
 >
@@ -835,7 +835,7 @@ Phrased as “action → expected result”, so they can go into a test case wit
 - **POST to `/api/auth/login` with a 300 kB body** → 401 from the credential check, not a 413: the request reached the controller. That is the whole point of the check.
 - **The same request with `bodyLimit: '20kb'` and a 30 kB body** → 413 from the parser.
 - **A body under the configured ceiling** → the request is handled normally.
-- **A file upload noticeably larger than `bodyLimit`** → goes through: multipart does not land here and is bounded by `MEDIA_MAX_UPLOAD_BYTES`.
+- **A file upload noticeably larger than `bodyLimit`** → goes through: multipart does not land here and is bounded by the media plugin's `maxUploadBytes`.
 
 ### Failure at startup
 

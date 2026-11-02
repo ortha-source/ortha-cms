@@ -312,7 +312,9 @@ describe('the content migrations folder, as three places name it', () => {
         ).toBe(expected);
 
         const builderRoot = /SCHEMA_BUILDER_ROOT'\) \?\? '([^']+)'/.exec(
-            rendered('apps/server/config/schema-builder.ts')
+            // The template's module defers to the shared builder, which owns
+            // the default.
+            sourceOf('@orthacms/config', 'src/lib/server.ts')
         );
         expect(builderRoot).not.toBeNull();
         expect(
@@ -327,7 +329,9 @@ describe('the content migrations folder, as three places name it', () => {
     it('agrees on the manifest the builder edits and drizzle-kit reads', () => {
         const root = '/srv/my-cms';
         const builderRoot = /SCHEMA_BUILDER_ROOT'\) \?\? '([^']+)'/.exec(
-            rendered('apps/server/config/schema-builder.ts')
+            // The template's module defers to the shared builder, which owns
+            // the default.
+            sourceOf('@orthacms/config', 'src/lib/server.ts')
         ) as RegExpExecArray;
 
         expect(resolve(root, drizzleConfig().schema)).toBe(
